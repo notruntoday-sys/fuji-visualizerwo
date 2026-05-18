@@ -310,7 +310,7 @@ function updateZoom(records) {
   const width = 1200 / zoom;
   const height = 420 / zoom;
   const x = clamp(focus.x - width * 0.5, 0, 1200 - width);
-  const y = clamp(focus.y - height * 0.52, 0, 420 - height);
+  const y = clamp((420 - height) * 0.5, 0, 420 - height);
   els.svg.setAttribute("viewBox", `${x} ${y} ${width} ${height}`);
 }
 
