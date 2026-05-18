@@ -198,7 +198,7 @@ function renderStatic() {
     return `
       <g>
         <line class="grid-line" x1="${x}" y1="32" x2="${x}" y2="390"></line>
-        <circle class="aid-dot" cx="${x}" cy="${y}" r="5"></circle>
+        <rect class="aid-dot" x="${x - 5}" y="${y - 5}" width="10" height="10"></rect>
         <text class="aid-label" x="${x}" y="${labelY}" text-anchor="middle">${escapeHtml(label)}</text>
         <text class="aid-meta" x="${x}" y="${metaY}" text-anchor="middle">${point.distance.toFixed(1)}km</text>
       </g>

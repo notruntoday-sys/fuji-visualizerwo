@@ -220,9 +220,7 @@ input[type="range"] {
 }
 
 .aid-dot {
-  fill: var(--green);
-  stroke: white;
-  stroke-width: 3;
+  fill: #111827;
 }
 
 .aid-label {
@@ -302,6 +300,11 @@ input[type="range"] {
 
 .runner.is-dnf {
   opacity: 0.72;
+}
+
+.runner.is-dnf text {
+  font-size: 10px;
+  stroke-width: 2px;
 }
 
 .race-strip {
