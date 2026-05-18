@@ -131,13 +131,13 @@ function bindEvents() {
 
   els.speed.addEventListener("click", () => {
     state.speedIndex = (state.speedIndex + 1) % SPEEDS.length;
-    els.speed.textContent = `${SPEEDS[state.speedIndex]}x`;
+    els.speed.textContent = `speed ${SPEEDS[state.speedIndex]}x`;
   });
 
   els.zoom.addEventListener("click", () => {
     state.zoomIndex = (state.zoomIndex + 1) % ZOOMS.length;
     const zoom = ZOOMS[state.zoomIndex];
-    els.zoom.textContent = zoom === 1 ? "全体 (1x)" : `追従 (${zoom}x)`;
+    els.zoom.textContent = `Expand ${zoom}x`;
     renderFrame();
   });
 
@@ -190,6 +190,8 @@ function renderStatic() {
     `;
   }).join("");
   const checkpoints = state.checkpoints.map((point, index) => {
+    const label = shortPoint(point.point);
+    if (!label) return "";
     const { x, y } = pointToSvg(point.distance);
     const labelY = index % 2 === 0 ? y + 26 : y - 28;
     const metaY = labelY + 15;
@@ -197,7 +199,7 @@ function renderStatic() {
       <g>
         <line class="grid-line" x1="${x}" y1="32" x2="${x}" y2="390"></line>
         <circle class="aid-dot" cx="${x}" cy="${y}" r="5"></circle>
-        <text class="aid-label" x="${x}" y="${labelY}" text-anchor="middle">${escapeHtml(shortPoint(point.point))}</text>
+        <text class="aid-label" x="${x}" y="${labelY}" text-anchor="middle">${escapeHtml(label)}</text>
         <text class="aid-meta" x="${x}" y="${metaY}" text-anchor="middle">${point.distance.toFixed(1)}km</text>
       </g>
     `;
@@ -389,12 +391,16 @@ function formatClock(seconds) {
 }
 
 function shortPoint(point) {
+  if (point === "N1ニューサンピアIN") return "ニューサンピア1";
+  if (point === "N1ニューサンピアOUT") return "";
+  if (point === "S1ニューサンピアIN") return "";
+  if (point === "S1ニューサンピアOUT") return "ニューサンピア2";
+  if (point === "くぬぎむら体験交流館") return "くぬぎむら";
   return point
     .replace(/^S1-/, "")
     .replace(/^S1/, "")
     .replace(/^S2-/, "")
     .replace(/^S2/, "")
-    .replace("ニューサンピア", "NSP")
     .replace("堂平キャンプ場", "堂平")
     .replace("桂木観音", "桂木")
     .replace("高山不動尊", "高山")

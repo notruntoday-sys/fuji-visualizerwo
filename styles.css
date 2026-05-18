@@ -50,6 +50,11 @@ button.is-active {
   color: white;
 }
 
+#speedBtn,
+#zoomBtn {
+  font-size: 13px;
+}
+
 .app-shell {
   width: min(1280px, 100%);
   margin: 0 auto;
@@ -283,8 +288,8 @@ input[type="range"] {
 }
 
 .runner circle {
-  stroke: white;
-  stroke-width: 3;
+  stroke: rgba(255, 255, 255, 0.68);
+  stroke-width: 1.6;
 }
 
 .runner text {
