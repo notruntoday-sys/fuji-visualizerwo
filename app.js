@@ -238,10 +238,12 @@ function renderFrame() {
 function renderRunnerList() {
   const records = state.records.filter((record) => {
     const query = `${record.name} ${record.bib} ${record.team} ${record.prefecture}`.toLowerCase();
-    if (state.mode === "leaders" && !(record.status === "goal" && rankNumber(record.rank) <= 20)) return false;
-    if (state.mode === "women" && !(record.status === "goal" && record.division === "女子")) return false;
-    if (state.mode === "finishers" && record.status !== "goal") return false;
-    if (state.mode === "dnf" && record.status !== "dnf") return false;
+    if (state.mode === "leaders" && !(record.status === "goal" && !isEkiden(record) && rankNumber(record.rank) <= 20)) return false;
+    if (state.mode === "women" && !(record.status === "goal" && !isEkiden(record) && record.division === "女子")) return false;
+    if (state.mode === "finishers" && !(record.status === "goal" && !isEkiden(record))) return false;
+    if (state.mode === "dnf" && !(record.status === "dnf" && !isEkiden(record))) return false;
+    if (state.mode === "all" && isEkiden(record)) return false;
+    if (state.mode === "ekiden" && !(record.status === "goal" && isEkiden(record))) return false;
     return !state.query || query.includes(state.query);
   });
 
@@ -268,13 +270,18 @@ function renderRunnerList() {
 function selectPreset(mode) {
   state.selected.clear();
   state.records.forEach((record) => {
-    const selected = (mode === "leaders" && record.status === "goal" && rankNumber(record.rank) <= 20)
-      || (mode === "women" && record.status === "goal" && record.division === "女子")
-      || (mode === "finishers" && record.status === "goal")
-      || (mode === "dnf" && record.status === "dnf")
-      || mode === "all";
+    const selected = (mode === "leaders" && record.status === "goal" && !isEkiden(record) && rankNumber(record.rank) <= 20)
+      || (mode === "women" && record.status === "goal" && !isEkiden(record) && record.division === "女子")
+      || (mode === "finishers" && record.status === "goal" && !isEkiden(record))
+      || (mode === "dnf" && record.status === "dnf" && !isEkiden(record))
+      || (mode === "all" && !isEkiden(record))
+      || (mode === "ekiden" && record.status === "goal" && isEkiden(record));
     if (selected) state.selected.add(record.bib);
   });
+}
+
+function isEkiden(record) {
+  return record.race === "ekiden";
 }
 
 function loop(time) {

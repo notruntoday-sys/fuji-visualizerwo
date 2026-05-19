@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "check": "node --check app.js && node --check build-splits-data.js && node --check data.js && node --check profile.js",
+    "check": "node --check app.js && node --check build-splits-data.js && node --check build-ekiden-data.js && node --check data.js && node --check profile.js",
     "start": "python3 -m http.server 4173"
   }
 }
