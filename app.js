@@ -5,6 +5,30 @@ const COURSE_KM = PROFILE_DATA.distanceKm || 162.8;
 const PROFILE = PROFILE_DATA.points;
 const SPEEDS = [300, 900, 1800, 3600];
 const ZOOMS = [1, 1.6, 2.4];
+const EKIDEN_OFFSET_SECONDS = 60 * 60;
+const EKIDEN_LABELS = {
+  "彩の国100mile駅伝優勝候補2026": "優勝候補",
+  "ぷらっとおさんぽ": "ぷらっと",
+  "中華そばナトリ": "ナトリ",
+  "チーム奥久慈": "奥久慈",
+  "脳天ランナーズ": "脳天",
+  "YSMトレイルズ": "YSM",
+  "古賀志山快速登山部": "古賀志山",
+  "たかおじ練": "たかおじ",
+  "3世代揃いました": "3世代",
+  "TEAM MIURA": "MIURA",
+  "阿部ンジャーズ": "阿部ンジ",
+  "チームワイルド": "ワイルド",
+  "ちーおさ区間急行": "ちーおさ",
+  "チームガッツ": "ガッツ",
+  "ABETRA チャラ男とハルルン": "ABETRA",
+  "チームトレイルヘッド": "チートレ",
+  "マイラーズオンライン": "マイラーズ",
+  "はだし駅伝部": "はだし",
+  "トレイル大好きつっきーズ": "つっきー",
+  "ＡＬＰＲＣ": "ALPRC",
+  "時の鐘を鳴らすのは俺ら": "時の鐘",
+};
 const SURNAME_ROMAJI = {
   島木: "Shimaki", 高橋: "Takahashi", 三浦: "Miura", 山影: "Yamakage", 須永: "Sunaga", 小野: "Ono", 植田: "Ueda", 橋本: "Hashimoto",
   長: "Cho", 中田: "Nakada", 芝脇: "Shibawaki", 崎坂: "Sakisaka", 小室: "Komuro", 青木: "Aoki", 片桐: "Katagiri", 杉山: "Sugiyama",
@@ -50,7 +74,7 @@ const state = {
   playing: false,
   speedIndex: 0,
   zoomIndex: 0,
-  mode: "leaders",
+  modes: new Set(["leaders"]),
   query: "",
   selected: new Set(),
   lastFrame: 0,
@@ -80,8 +104,9 @@ async function init() {
   state.records = sortRecords(window.SAINOKUNI_DATA?.records || []);
   state.checkpoints = buildCheckpoints(state.records);
   state.summary = window.SAINOKUNI_DATA?.summary || fallbackSummary(state.records);
-  selectPreset("leaders");
+  selectPreset();
   bindEvents();
+  updateActiveTabs();
   renderStatic();
   renderRunnerList();
   renderFrame();
@@ -90,6 +115,7 @@ async function init() {
 
 function sortRecords(records) {
   return [...records].sort((a, b) => {
+    if (isEkiden(a) !== isEkiden(b)) return isEkiden(a) ? 1 : -1;
     if (a.status === "goal" && b.status === "goal") return rankNumber(a.rank) - rankNumber(b.rank);
     if (a.status !== b.status) return a.status === "goal" ? -1 : 1;
     return b.distance - a.distance || (a.seconds || 0) - (b.seconds || 0);
@@ -153,9 +179,9 @@ function bindEvents() {
 
   els.tabs.forEach((tab) => {
     tab.addEventListener("click", () => {
-      state.mode = tab.dataset.mode;
-      selectPreset(state.mode);
-      els.tabs.forEach((item) => item.classList.toggle("is-active", item === tab));
+      updateModes(tab.dataset.mode);
+      selectPreset();
+      updateActiveTabs();
       renderRunnerList();
       renderFrame();
     });
@@ -223,7 +249,7 @@ function renderFrame() {
   document.querySelector("#runnerLayer").innerHTML = visible.map((record) => {
     const position = runnerPosition(record, state.elapsed);
     if (!position.visible) return "";
-    const label = runnerLabel(record);
+    const label = isEkiden(record) ? ekidenLabel(record) : runnerLabel(record);
     const statusClass = record.status === "dnf" && state.elapsed >= record.seconds ? "is-dnf" : "";
     return `
       <g class="runner ${statusClass}" transform="translate(${position.x} ${position.y})">
@@ -238,12 +264,7 @@ function renderFrame() {
 function renderRunnerList() {
   const records = state.records.filter((record) => {
     const query = `${record.name} ${record.bib} ${record.team} ${record.prefecture}`.toLowerCase();
-    if (state.mode === "leaders" && !(record.status === "goal" && !isEkiden(record) && rankNumber(record.rank) <= 20)) return false;
-    if (state.mode === "women" && !(record.status === "goal" && !isEkiden(record) && record.division === "女子")) return false;
-    if (state.mode === "finishers" && !(record.status === "goal" && !isEkiden(record))) return false;
-    if (state.mode === "dnf" && !(record.status === "dnf" && !isEkiden(record))) return false;
-    if (state.mode === "all" && isEkiden(record)) return false;
-    if (state.mode === "ekiden" && !(record.status === "goal" && isEkiden(record))) return false;
+    if (!matchesModes(record)) return false;
     return !state.query || query.includes(state.query);
   });
 
@@ -267,17 +288,40 @@ function renderRunnerList() {
   });
 }
 
-function selectPreset(mode) {
+function updateModes(mode) {
+  if (mode === "all") {
+    state.modes = new Set(["leaders", "women", "finishers", "dnf", "ekiden", "all"]);
+    return;
+  }
+
+  state.modes.delete("all");
+  if (state.modes.has(mode)) state.modes.delete(mode);
+  else state.modes.add(mode);
+
+  if (mode === "finishers" && state.modes.has("finishers")) {
+    state.modes.add("leaders");
+    state.modes.add("women");
+  }
+}
+
+function updateActiveTabs() {
+  els.tabs.forEach((item) => item.classList.toggle("is-active", state.modes.has(item.dataset.mode)));
+}
+
+function selectPreset() {
   state.selected.clear();
   state.records.forEach((record) => {
-    const selected = (mode === "leaders" && record.status === "goal" && !isEkiden(record) && rankNumber(record.rank) <= 20)
-      || (mode === "women" && record.status === "goal" && !isEkiden(record) && record.division === "女子")
-      || (mode === "finishers" && record.status === "goal" && !isEkiden(record))
-      || (mode === "dnf" && record.status === "dnf" && !isEkiden(record))
-      || (mode === "all" && !isEkiden(record))
-      || (mode === "ekiden" && record.status === "goal" && isEkiden(record));
-    if (selected) state.selected.add(record.bib);
+    if (matchesModes(record)) state.selected.add(record.bib);
   });
+}
+
+function matchesModes(record) {
+  return (state.modes.has("leaders") && record.status === "goal" && !isEkiden(record) && rankNumber(record.rank) <= 20)
+    || (state.modes.has("women") && record.status === "goal" && !isEkiden(record) && record.division === "女子")
+    || (state.modes.has("finishers") && record.status === "goal" && !isEkiden(record))
+    || (state.modes.has("dnf") && record.status === "dnf" && !isEkiden(record))
+    || (state.modes.has("all") && !isEkiden(record))
+    || (state.modes.has("ekiden") && record.status === "goal" && isEkiden(record));
 }
 
 function isEkiden(record) {
@@ -325,7 +369,8 @@ function runnerPosition(record, elapsed) {
   if (elapsed < 0) return { visible: false };
   const splits = normalizedSplits(record);
   if (!splits.length) return { visible: false };
-  if (elapsed <= splits[0].seconds) return { visible: true, ...pointToSvg(splits[0].distance) };
+  if (elapsed < splits[0].seconds) return { visible: false };
+  if (elapsed === splits[0].seconds) return { visible: true, ...pointToSvg(splits[0].distance) };
 
   const last = splits[splits.length - 1];
   if (elapsed >= last.seconds) {
@@ -351,6 +396,7 @@ function normalizedSplits(record) {
     ];
   return splits
     .filter((split) => Number.isFinite(split.seconds) && Number.isFinite(split.distance))
+    .map((split) => isEkiden(record) ? { ...split, seconds: split.seconds + EKIDEN_OFFSET_SECONDS } : split)
     .sort((a, b) => a.seconds - b.seconds || a.distance - b.distance);
 }
 
@@ -419,6 +465,10 @@ function runnerLabel(record) {
   if (record.status !== "dnf") return surname.slice(0, 5);
   if (/^[A-Za-z]+$/.test(surname)) return surname;
   return SURNAME_ROMAJI[surname] || surname;
+}
+
+function ekidenLabel(record) {
+  return EKIDEN_LABELS[record.team] || record.team || record.name || record.bib;
 }
 
 function displayRunnerName(record) {
