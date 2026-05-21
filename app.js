@@ -78,6 +78,7 @@ const state = {
   query: "",
   selected: new Set(),
   detailBib: "",
+  segmentRanks: new Map(),
   lastFrame: 0,
 };
 
@@ -103,6 +104,7 @@ init();
 
 async function init() {
   state.records = sortRecords(window.SAINOKUNI_DATA?.records || []);
+  state.segmentRanks = buildSegmentRanks(state.records);
   state.checkpoints = buildCheckpoints(state.records);
   state.summary = window.SAINOKUNI_DATA?.summary || fallbackSummary(state.records);
   selectPreset();
@@ -130,6 +132,38 @@ function fallbackSummary(records) {
     dnf: records.filter((record) => record.status === "dnf").length,
     dns: 0,
   };
+}
+
+function buildSegmentRanks(records) {
+  const groups = new Map();
+  records
+    .filter((record) => detailEligible(record))
+    .forEach((record) => {
+      record.splits.forEach((split, index) => {
+        if (index === 0) return;
+        const prev = record.splits[index - 1];
+        const segmentSeconds = split.seconds - prev.seconds;
+        if (!Number.isFinite(segmentSeconds) || segmentSeconds <= 0) return;
+        const key = segmentKey(prev, split);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push({ bib: record.bib, seconds: segmentSeconds });
+      });
+    });
+
+  const ranks = new Map();
+  groups.forEach((entries, key) => {
+    entries.sort((a, b) => a.seconds - b.seconds);
+    let lastSeconds = null;
+    let currentRank = 0;
+    entries.forEach((entry, index) => {
+      if (lastSeconds === null || entry.seconds !== lastSeconds) {
+        currentRank = index + 1;
+        lastSeconds = entry.seconds;
+      }
+      ranks.set(`${entry.bib}|${key}`, `${currentRank}/${entries.length}`);
+    });
+  });
+  return ranks;
 }
 
 function buildCheckpoints(records) {
@@ -350,11 +384,15 @@ function renderSplitDetails(record) {
   const rows = record.splits
     .filter((split) => split.point !== "スタート")
     .map((split) => {
+      const index = record.splits.indexOf(split);
+      const prev = record.splits[index - 1];
       const point = shortPoint(split.point) || split.point;
+      const segmentRank = prev ? state.segmentRanks.get(`${record.bib}|${segmentKey(prev, split)}`) : "";
       return `
         <tr>
           <td>${escapeHtml(point)}</td>
           <td>${escapeHtml(split.rank || "-")}</td>
+          <td>${escapeHtml(segmentRank || "-")}</td>
           <td>${escapeHtml(split.time || "-")}</td>
           <td>${Number.isFinite(split.distance) ? split.distance.toFixed(1) : "-"}km</td>
         </tr>
@@ -365,12 +403,16 @@ function renderSplitDetails(record) {
     <div class="runner-detail" role="dialog" aria-label="${escapeHtml(displayRunnerName(record))}の区間順位">
       <table>
         <thead>
-          <tr><th>地点</th><th>順位</th><th>タイム</th><th>距離</th></tr>
+          <tr><th>地点</th><th>通過順位</th><th>区間順位</th><th>タイム</th><th>距離</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
   `;
+}
+
+function segmentKey(prev, split) {
+  return `${prev.point}->${split.point}`;
 }
 
 function loop(time) {
