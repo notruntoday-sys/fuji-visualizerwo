@@ -388,11 +388,13 @@ function renderSplitDetails(record) {
       const prev = record.splits[index - 1];
       const point = prev ? segmentLabel(prev, split) : shortPoint(split.point) || split.point;
       const segmentRank = prev ? state.segmentRanks.get(`${record.bib}|${segmentKey(prev, split)}`) : "";
+      const passRank = rankCell(split.rank);
+      const sectionRank = rankCell(segmentRank);
       return `
         <tr>
           <td>${escapeHtml(point)}</td>
-          <td>${escapeHtml(split.rank || "-")}</td>
-          <td>${escapeHtml(segmentRank || "-")}</td>
+          <td${passRank.className}>${escapeHtml(passRank.label)}</td>
+          <td${sectionRank.className}>${escapeHtml(sectionRank.label)}</td>
           <td>${escapeHtml(split.time || "-")}</td>
           <td>${Number.isFinite(split.distance) ? split.distance.toFixed(1) : "-"}km</td>
         </tr>
@@ -413,6 +415,19 @@ function renderSplitDetails(record) {
 
 function segmentKey(prev, split) {
   return `${prev.point}->${split.point}`;
+}
+
+function rankCell(rank) {
+  const value = rankLabel(rank);
+  const numeric = Number.parseInt(value, 10);
+  return {
+    label: value || "-",
+    className: Number.isFinite(numeric) && numeric <= 10 ? ' class="top-rank"' : "",
+  };
+}
+
+function rankLabel(rank) {
+  return String(rank || "").split("/")[0];
 }
 
 function segmentLabel(prev, split) {

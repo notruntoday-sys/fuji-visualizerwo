@@ -524,6 +524,11 @@ input[type="range"] {
   font-size: 11px;
 }
 
+.runner-detail .top-rank {
+  color: #dc2626;
+  font-weight: 900;
+}
+
 .time-pill {
   border-radius: 999px;
   background: white;
