@@ -77,6 +77,7 @@ const state = {
   modes: new Set(["leaders"]),
   query: "",
   selected: new Set(),
+  detailBib: "",
   lastFrame: 0,
 };
 
@@ -269,14 +270,18 @@ function renderRunnerList() {
   });
 
   els.runnerList.innerHTML = records.map((record) => `
-    <label class="runner-row">
+    <div class="runner-row">
       <input type="checkbox" data-bib="${escapeHtml(record.bib)}" ${state.selected.has(record.bib) ? "checked" : ""}>
       <span class="runner-name">
-        <strong>${escapeHtml(displayRunnerName(record))}</strong>
+        <span class="runner-title">
+          <strong>${escapeHtml(displayRunnerName(record))}</strong>
+          ${detailEligible(record) ? `<button class="detail-button" type="button" data-detail-bib="${escapeHtml(record.bib)}">${state.detailBib === record.bib ? "閉じる" : "詳細情報"}</button>` : ""}
+        </span>
         <span>${escapeHtml(record.bib)} / ${escapeHtml(record.team || record.prefecture)} / ${escapeHtml(record.point)}</span>
       </span>
       <span class="time-pill">${escapeHtml(record.time || "-")}</span>
-    </label>
+      ${state.detailBib === record.bib ? renderSplitDetails(record) : ""}
+    </div>
   `).join("");
 
   els.runnerList.querySelectorAll("[data-bib]").forEach((checkbox) => {
@@ -284,6 +289,15 @@ function renderRunnerList() {
       if (checkbox.checked) state.selected.add(checkbox.dataset.bib);
       else state.selected.delete(checkbox.dataset.bib);
       renderFrame();
+    });
+  });
+
+  els.runnerList.querySelectorAll("[data-detail-bib]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      state.detailBib = state.detailBib === button.dataset.detailBib ? "" : button.dataset.detailBib;
+      renderRunnerList();
     });
   });
 }
@@ -326,6 +340,37 @@ function matchesModes(record) {
 
 function isEkiden(record) {
   return record.race === "ekiden";
+}
+
+function detailEligible(record) {
+  return record.status === "goal" && !isEkiden(record) && Array.isArray(record.splits) && record.splits.length > 1;
+}
+
+function renderSplitDetails(record) {
+  const rows = record.splits
+    .filter((split) => split.point !== "スタート")
+    .map((split) => {
+      const point = shortPoint(split.point) || split.point;
+      return `
+        <tr>
+          <td>${escapeHtml(point)}</td>
+          <td>${escapeHtml(split.rank || "-")}</td>
+          <td>${escapeHtml(split.time || "-")}</td>
+          <td>${Number.isFinite(split.distance) ? split.distance.toFixed(1) : "-"}km</td>
+        </tr>
+      `;
+    }).join("");
+
+  return `
+    <div class="runner-detail" role="dialog" aria-label="${escapeHtml(displayRunnerName(record))}の区間順位">
+      <table>
+        <thead>
+          <tr><th>地点</th><th>順位</th><th>タイム</th><th>距離</th></tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
 }
 
 function loop(time) {
