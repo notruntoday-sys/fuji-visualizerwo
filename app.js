@@ -386,7 +386,7 @@ function renderSplitDetails(record) {
     .map((split) => {
       const index = record.splits.indexOf(split);
       const prev = record.splits[index - 1];
-      const point = shortPoint(split.point) || split.point;
+      const point = prev ? segmentLabel(prev, split) : shortPoint(split.point) || split.point;
       const segmentRank = prev ? state.segmentRanks.get(`${record.bib}|${segmentKey(prev, split)}`) : "";
       return `
         <tr>
@@ -403,7 +403,7 @@ function renderSplitDetails(record) {
     <div class="runner-detail" role="dialog" aria-label="${escapeHtml(displayRunnerName(record))}の区間順位">
       <table>
         <thead>
-          <tr><th>地点</th><th>通過順位</th><th>区間順位</th><th>タイム</th><th>距離</th></tr>
+          <tr><th>区間</th><th>通過順位</th><th>区間順位</th><th>タイム</th><th>距離</th></tr>
         </thead>
         <tbody>${rows}</tbody>
       </table>
@@ -413,6 +413,26 @@ function renderSplitDetails(record) {
 
 function segmentKey(prev, split) {
   return `${prev.point}->${split.point}`;
+}
+
+function segmentLabel(prev, split) {
+  const from = segmentPointLabel(prev.point);
+  const to = segmentPointLabel(split.point);
+  return `${segmentPrefix(split)} ${from}→${to}`;
+}
+
+function segmentPointLabel(point) {
+  if (point === "N1ニューサンピアIN") return "ニューサンピアIN";
+  if (point === "N1ニューサンピアOUT") return "ニューサンピアOUT";
+  if (point === "S1ニューサンピアIN") return "ニューサンピアIN";
+  if (point === "S1ニューサンピアOUT") return "ニューサンピアOUT";
+  return shortPoint(point) || point;
+}
+
+function segmentPrefix(split) {
+  if (split.distance <= 53.9) return "N";
+  if (split.distance <= 108.3) return "S1";
+  return "S2";
 }
 
 function loop(time) {
